@@ -1,1 +1,2653 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PREFLIGHT — Product Hunt Launch Readiness Check</title>
+    <meta
+      name="description"
+      content="Scan your GitHub repo and landing page, get a launch readiness score, and generate a Product Hunt tagline, description, and maker comment."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23F5A623'%3E%3Cpath d='M12 2 L15 9 L22 10 L17 15 L18 22 L12 18.5 L6 22 L7 15 L2 10 L9 9 Z'/%3E%3C/svg%3E"
+    />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            fontFamily: {
+              display: ['"Space Grotesk"', "sans-serif"],
+              body: ["Inter", "sans-serif"],
+              mono: ['"JetBrains Mono"', "monospace"],
+            },
+          },
+        },
+      };
+    </script>
+
+    <script>
+      // Set initial theme before paint: saved choice wins, otherwise system preference.
+      (function () {
+        var saved = null;
+        try {
+          saved = localStorage.getItem("preflight-theme");
+        } catch (e) {
+          /* storage unavailable, fall through */
+        }
+        var wantLight =
+          saved ?
+            saved === "light"
+          : window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: light)").matches;
+        if (wantLight) document.documentElement.classList.add("light");
+      })();
+    </script>
+
+    <style>
+      :root {
+        --bg: #0b1120;
+        --grad1: rgba(108, 123, 255, 0.1);
+        --grad2: rgba(245, 166, 35, 0.09);
+        --panel: #121a2e;
+        --panel2: #0e1526;
+        --line: rgba(148, 163, 184, 0.14);
+        --line-strong: rgba(148, 163, 184, 0.3);
+        --ink: #e9eef6;
+        --mute: #93a0b4;
+        --amber: #f5a623;
+        --amber-soft: #ffc24d;
+        --amber-ink: #1a1204;
+        --green: #3ed88b;
+        --red: #ff6b6b;
+        --track: #1b2540;
+        --scrollbar-track: #0b1120;
+        --scrollbar-thumb: #1e2a44;
+        --grain-opacity: 0.035;
+        --shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+      }
+      html.light {
+        --bg: #f5f6fa;
+        --grad1: rgba(76, 95, 232, 0.07);
+        --grad2: rgba(185, 114, 10, 0.06);
+        --panel: #ffffff;
+        --panel2: #eef1f6;
+        --line: rgba(22, 33, 58, 0.1);
+        --line-strong: rgba(22, 33, 58, 0.22);
+        --ink: #16213a;
+        --mute: #5b6b84;
+        --amber: #b9720a;
+        --amber-soft: #d98a15;
+        --amber-ink: #fffbf2;
+        --green: #1e9e63;
+        --red: #d6455a;
+        --track: #e4e8f0;
+        --scrollbar-track: #f5f6fa;
+        --scrollbar-thumb: #d7dce6;
+        --grain-opacity: 0.02;
+        --shadow: 0 20px 50px rgba(22, 33, 58, 0.1);
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        background:
+          radial-gradient(circle at 12% 8%, var(--grad1), transparent 40%),
+          radial-gradient(circle at 88% 4%, var(--grad2), transparent 45%),
+          var(--bg);
+        color: var(--ink);
+        transition:
+          background-color 0.3s ease,
+          color 0.3s ease;
+      }
+      ::selection {
+        background: var(--amber);
+        color: var(--amber-ink);
+      }
+      ::-webkit-scrollbar {
+        width: 10px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--scrollbar-track);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        border-radius: 8px;
+      }
+
+      .grain {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        opacity: var(--grain-opacity);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        transition:
+          background-color 0.3s ease,
+          border-color 0.3s ease;
+      }
+
+      .manifest-input {
+        background: var(--panel2);
+        border: 1px solid var(--line-strong);
+        transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease,
+          background-color 0.3s ease;
+      }
+      .manifest-input:focus-within {
+        border-color: var(--amber);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--amber) 18%, transparent);
+      }
+
+      .btn-primary {
+        background: linear-gradient(180deg, var(--amber-soft), var(--amber));
+        color: var(--amber-ink);
+      }
+      .btn-primary:hover {
+        filter: brightness(1.06);
+      }
+      .btn-primary:active {
+        filter: brightness(0.96);
+      }
+      .btn-primary:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        filter: none;
+      }
+
+      .tick {
+        font-variant-numeric: tabular-nums;
+      }
+
+      .gauge-arc {
+        transition:
+          stroke-dashoffset 1.4s cubic-bezier(0.22, 1, 0.36, 1),
+          stroke 0.3s ease;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .gauge-arc {
+          transition: none;
+        }
+        * {
+          animation-duration: 0.001ms !important;
+          transition-duration: 0.001ms !important;
+        }
+      }
+
+      .flip-row {
+        animation: flipIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+      }
+      @keyframes flipIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px) rotateX(-12deg);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) rotateX(0);
+        }
+      }
+
+      .toast {
+        animation:
+          toastIn 0.25s ease-out both,
+          toastOut 0.25s ease-in 1.6s forwards;
+      }
+      @keyframes toastIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes toastOut {
+        to {
+          opacity: 0;
+          transform: translateY(-6px);
+        }
+      }
+
+      .focus-ring:focus-visible {
+        outline: 2px solid var(--amber);
+        outline-offset: 2px;
+      }
+
+      .divider-dash {
+        background-image: repeating-linear-gradient(
+          90deg,
+          var(--line-strong) 0 6px,
+          transparent 6px 12px
+        );
+        height: 1px;
+      }
+
+      details > summary {
+        list-style: none;
+        cursor: pointer;
+      }
+      details > summary::-webkit-details-marker {
+        display: none;
+      }
+      details[open] .chev {
+        transform: rotate(180deg);
+      }
+
+      .theme-toggle {
+        border: 1px solid var(--line-strong);
+        background: var(--panel2);
+        color: var(--mute);
+        transition:
+          color 0.2s ease,
+          border-color 0.2s ease,
+          background-color 0.3s ease;
+      }
+      .theme-toggle:hover {
+        color: var(--ink);
+        border-color: var(--amber);
+      }
+      .theme-toggle .icon-sun {
+        display: none;
+      }
+      html.light .theme-toggle .icon-moon {
+        display: none;
+      }
+      html.light .theme-toggle .icon-sun {
+        display: block;
+      }
+
+      .copy-btn.copied {
+        color: var(--green) !important;
+      }
+
+      #drop-zone {
+        border: 2px dashed var(--line-strong);
+        background: var(--panel2);
+      }
+      #drop-zone:hover {
+        border-color: var(--amber);
+      }
+      #drop-zone.drag-over {
+        border-color: var(--amber);
+        background: color-mix(in srgb, var(--amber) 8%, var(--panel2));
+      }
+
+      .gallery-card {
+        background: var(--panel2);
+        border: 1px solid var(--line);
+        animation: flipIn 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+      }
+      .gallery-thumb {
+        aspect-ratio: 5 / 3;
+        object-fit: cover;
+        background: var(--track);
+      }
+      .gallery-remove {
+        background: rgba(11, 17, 32, 0.72);
+        color: #fff;
+        backdrop-filter: blur(2px);
+      }
+      .gallery-remove:hover {
+        background: rgba(255, 107, 107, 0.85);
+      }
+
+      .gallery-collapse {
+        overflow: hidden;
+        max-height: 0;
+        opacity: 0;
+        transform: translateY(-10px);
+        transition:
+          max-height 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+          opacity 0.35s ease,
+          transform 0.35s ease;
+      }
+      .gallery-collapse.open {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .gallery-collapse {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+
+  <body class="font-body min-h-screen relative">
+    <div class="grain"></div>
+
+    <!-- NAV -->
+    <header class="relative z-10 border-b" style="border-color: var(--line)">
+      <div
+        class="max-w-6xl mx-auto px-5 sm:px-8 py-5 flex items-center justify-between"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="w-8 h-8 rounded-md flex items-center justify-center"
+            style="
+              background: color-mix(in srgb, var(--amber) 12%, transparent);
+              border: 1px solid
+                color-mix(in srgb, var(--amber) 35%, transparent);
+            "
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--amber)"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M12 2 L15 9 L22 10 L17 15 L18 22 L12 18.5 L6 22 L7 15 L2 10 L9 9 Z"
+              />
+            </svg>
+          </div>
+          <span class="font-display font-semibold tracking-tight text-lg"
+            >PREFLIGHT</span
+          >
+        </div>
+        <div class="flex items-center gap-4">
+          <div
+            class="hidden sm:flex items-center gap-2 text-xs font-mono"
+            style="color: var(--mute)"
+          >
+            <span
+              class="w-1.5 h-1.5 rounded-full"
+              style="background: var(--green)"
+            ></span>
+            <span>PRODUCT HUNT READINESS SCAN</span>
+          </div>
+          <button
+            id="theme-toggle"
+            type="button"
+            aria-label="Toggle light and dark mode"
+            class="theme-toggle w-9 h-9 rounded-full flex items-center justify-center focus-ring"
+          >
+            <svg
+              class="icon-moon"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+            <svg
+              class="icon-sun"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- HERO -->
+    <section
+      class="relative z-10 max-w-6xl mx-auto px-5 sm:px-8 pt-14 pb-10 grid lg:grid-cols-2 gap-12 items-center"
+    >
+      <div>
+        <p
+          class="font-mono text-xs tracking-widest mb-4"
+          style="color: var(--amber)"
+        >
+          PRE-LAUNCH CHECKLIST · GITHUB + LANDING PAGE
+        </p>
+        <h1
+          class="font-display text-4xl sm:text-5xl font-semibold leading-[1.08] tracking-tight"
+        >
+          Cleared for launch,<br />or not yet.
+        </h1>
+        <p
+          class="mt-5 text-base sm:text-lg leading-relaxed max-w-md"
+          style="color: var(--mute)"
+        >
+          Paste your GitHub repo. PREFLIGHT reads your README and listing
+          details, scores what a Product Hunt hunter actually sees, and writes
+          you a tagline, description, and maker comment on the spot.
+        </p>
+
+        <form id="scan-form" class="mt-8 manifest-input rounded-xl p-4 sm:p-5">
+          <label
+            for="repo-url"
+            class="block text-xs font-mono mb-2"
+            style="color: var(--mute)"
+            >GITHUB REPOSITORY URL</label
+          >
+          <input
+            id="repo-url"
+            type="text"
+            required
+            placeholder="https://github.com/yourname/yourproject"
+            autocomplete="off"
+            class="w-full bg-transparent border-none outline-none font-mono text-sm py-1.5 focus-ring rounded"
+            style="color: var(--ink)"
+          />
+
+          <div class="divider-dash my-4"></div>
+
+          <details class="group">
+            <summary
+              class="flex items-center justify-between text-xs font-mono focus-ring rounded"
+              style="color: var(--mute)"
+            >
+              <span>OPTIONAL — LANDING PAGE + AI COPY</span>
+              <svg
+                class="chev transition-transform w-3.5 h-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </summary>
+            <div class="mt-4 space-y-4">
+              <div>
+                <label
+                  for="landing-url"
+                  class="block text-xs font-mono mb-2"
+                  style="color: var(--mute)"
+                  >LANDING PAGE URL</label
+                >
+                <input
+                  id="landing-url"
+                  type="text"
+                  placeholder="https://yourproject.com"
+                  autocomplete="off"
+                  class="w-full rounded-lg px-3 py-2 text-sm outline-none focus-ring"
+                  style="
+                    background: var(--panel2);
+                    border: 1px solid var(--line);
+                    color: var(--ink);
+                  "
+                />
+              </div>
+              <div>
+                <label
+                  for="api-key"
+                  class="block text-xs font-mono mb-2"
+                  style="color: var(--mute)"
+                  >ANTHROPIC API KEY — FOR AI-WRITTEN COPY</label
+                >
+                <input
+                  id="api-key"
+                  type="password"
+                  placeholder="sk-ant-... (stays in your browser only)"
+                  autocomplete="off"
+                  class="w-full rounded-lg px-3 py-2 text-sm outline-none focus-ring"
+                  style="
+                    background: var(--panel2);
+                    border: 1px solid var(--line);
+                    color: var(--ink);
+                  "
+                />
+                <p
+                  class="text-xs mt-1.5 leading-relaxed"
+                  style="color: var(--mute); opacity: 0.85"
+                >
+                  Without a key, PREFLIGHT still scores your repo and drafts
+                  your copy with a template — you just won't get AI-polished
+                  wording. Your key is sent only to Anthropic, directly from
+                  your browser, and is never saved or logged anywhere.
+                </p>
+              </div>
+            </div>
+          </details>
+
+          <div class="flex items-center gap-3 mt-5 flex-wrap">
+            <button
+              type="submit"
+              id="scan-btn"
+              class="btn-primary font-display font-semibold text-sm rounded-lg px-5 py-2.5 focus-ring"
+            >
+              Run pre-flight check
+            </button>
+            <button
+              type="button"
+              id="example-btn"
+              class="text-xs font-mono transition focus-ring rounded px-2 py-1"
+              style="color: var(--mute)"
+            >
+              try an example ↗
+            </button>
+            <button
+              type="button"
+              id="gallery-toggle-btn"
+              aria-expanded="false"
+              class="text-xs font-mono transition focus-ring rounded px-3 py-1.5 flex items-center gap-1.5"
+              style="border: 1px solid var(--line-strong); color: var(--mute)"
+            >
+              🖼️ check gallery images
+              <svg
+                class="gallery-toggle-chev transition-transform w-3 h-3"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+          </div>
+          <p
+            id="form-error"
+            class="hidden text-xs font-mono mt-3"
+            style="color: var(--red)"
+            role="alert"
+          ></p>
+        </form>
+      </div>
+
+      <!-- GAUGE -->
+      <div class="flex flex-col items-center justify-center">
+        <div class="relative w-full max-w-sm">
+          <svg viewBox="0 0 200 130" class="w-full">
+            <path
+              d="M10,110 A90,90 0 0 1 190,110"
+              fill="none"
+              stroke="var(--track)"
+              stroke-width="14"
+              stroke-linecap="round"
+            />
+            <path
+              id="gauge-arc"
+              d="M10,110 A90,90 0 0 1 190,110"
+              fill="none"
+              stroke="var(--amber)"
+              stroke-width="14"
+              stroke-linecap="round"
+              pathLength="100"
+              stroke-dasharray="100"
+              stroke-dashoffset="100"
+              class="gauge-arc"
+            />
+            <text
+              x="100"
+              y="98"
+              text-anchor="middle"
+              id="gauge-number"
+              class="font-mono tick"
+              style="font-size: 34px; fill: var(--ink); font-weight: 700"
+            >
+              --
+            </text>
+            <text
+              x="100"
+              y="118"
+              text-anchor="middle"
+              id="gauge-label"
+              class="font-mono"
+              style="font-size: 9px; fill: var(--mute); letter-spacing: 2px"
+            >
+              AWAITING INPUT
+            </text>
+          </svg>
+          <div id="gauge-status" class="text-center mt-1">
+            <span
+              class="font-mono text-xs tracking-widest"
+              style="color: var(--mute)"
+              >STATUS —</span
+            >
+          </div>
+        </div>
+        <p
+          class="text-xs font-mono mt-6 text-center max-w-xs leading-relaxed"
+          style="color: var(--mute)"
+        >
+          Readiness is scored across listing copy, README depth, visual assets,
+          and momentum signals — the same things a hunter judges in the first
+          ten seconds.
+        </p>
+      </div>
+    </section>
+
+    <!-- RECENT SCANS -->
+    <section
+      id="recent-scans-section"
+      class="hidden relative z-10 max-w-6xl mx-auto px-5 sm:px-8 pb-6"
+    >
+      <div class="panel rounded-2xl p-5" style="box-shadow: var(--shadow)">
+        <div class="flex items-center justify-between mb-3">
+          <h2
+            class="font-mono text-xs tracking-widest"
+            style="color: var(--mute)"
+          >
+            RECENT SCANS
+          </h2>
+          <button
+            id="clear-history-btn"
+            type="button"
+            class="font-mono text-xs focus-ring rounded px-1"
+            style="color: var(--mute)"
+          >
+            clear
+          </button>
+        </div>
+        <ul id="recent-scans-list" class="space-y-0.5"></ul>
+      </div>
+    </section>
+
+    <!-- GALLERY CHECK -->
+    <section class="relative z-10 max-w-6xl mx-auto px-5 sm:px-8 pb-14">
+      <div id="gallery-collapse" class="gallery-collapse">
+        <div
+          class="panel rounded-2xl p-5 sm:p-6"
+          style="box-shadow: var(--shadow)"
+        >
+          <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
+            <h2 class="font-display font-semibold text-lg">
+              Gallery image check
+            </h2>
+            <span
+              id="gallery-count-badge"
+              class="font-mono text-xs"
+              style="color: var(--mute)"
+            ></span>
+          </div>
+          <p class="text-sm mb-5" style="color: var(--mute)">
+            Drop the images you're planning for your PH gallery — checked
+            against the 1270×760px spec, entirely in your browser. Nothing is
+            uploaded anywhere.
+          </p>
+
+          <div
+            id="drop-zone"
+            tabindex="0"
+            role="button"
+            aria-label="Upload gallery images to check"
+            class="rounded-xl p-8 sm:p-10 text-center cursor-pointer transition focus-ring"
+          >
+            <svg
+              class="mx-auto mb-3"
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--mute)"
+              stroke-width="1.6"
+            >
+              <path
+                d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 9l5-5 5 5M12 4v13"
+              />
+            </svg>
+            <p class="font-mono text-sm mb-1">
+              Drag images here, or tap to browse
+            </p>
+            <p class="font-mono text-xs" style="color: var(--mute)">
+              PNG or JPG · 5–8 images works best
+            </p>
+            <input
+              id="gallery-input"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              multiple
+              class="hidden"
+            />
+          </div>
+
+          <div
+            id="gallery-summary"
+            class="hidden mt-4 text-xs font-mono rounded-lg px-3 py-2.5 leading-relaxed"
+          ></div>
+
+          <div
+            id="gallery-grid"
+            class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-5"
+          ></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOADING -->
+    <section
+      id="loading-panel"
+      class="hidden relative z-10 max-w-3xl mx-auto px-5 sm:px-8 py-10"
+    >
+      <div class="panel rounded-2xl p-6" style="box-shadow: var(--shadow)">
+        <p
+          class="font-mono text-xs tracking-widest mb-4"
+          style="color: var(--amber)"
+        >
+          RUNNING CHECKS
+        </p>
+        <ul id="loading-steps" class="space-y-3 font-mono text-sm"></ul>
+      </div>
+    </section>
+
+    <!-- RESULTS -->
+    <section
+      id="results"
+      class="hidden relative z-10 max-w-6xl mx-auto px-5 sm:px-8 pb-24"
+    >
+      <div class="flex items-center gap-3 mb-8">
+        <div class="divider-dash flex-1"></div>
+        <span
+          class="font-mono text-xs tracking-widest"
+          style="color: var(--mute)"
+          >RESULTS</span
+        >
+        <div class="divider-dash flex-1"></div>
+        <button
+          id="rescan-btn"
+          class="font-mono text-xs px-3 py-1.5 rounded-lg transition focus-ring shrink-0"
+          style="border: 1px solid var(--line-strong); color: var(--mute)"
+        >
+          ↻ New scan
+        </button>
+      </div>
+
+      <!-- Priority fixes -->
+      <div
+        id="priority-fixes"
+        class="hidden panel rounded-2xl p-6 mb-6"
+        style="
+          box-shadow: var(--shadow);
+          border-color: color-mix(in srgb, var(--amber) 30%, var(--line));
+        "
+      >
+        <div class="flex items-center gap-2 mb-1">
+          <span class="font-mono text-xs" style="color: var(--amber)">▲</span>
+          <h2 class="font-display font-semibold text-lg">Fix these first</h2>
+        </div>
+        <p class="text-sm mb-3" style="color: var(--mute)">
+          Ranked by how much each one is holding your score back.
+        </p>
+        <ul id="priority-fixes-list"></ul>
+      </div>
+
+      <!-- Checklist + breakdown -->
+      <div class="grid lg:grid-cols-5 gap-6">
+        <div
+          class="lg:col-span-3 panel rounded-2xl p-6"
+          style="box-shadow: var(--shadow)"
+        >
+          <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
+            <h2 class="font-display font-semibold text-lg">
+              Manifest checklist
+            </h2>
+            <span
+              id="repo-badge"
+              class="font-mono text-xs"
+              style="color: var(--mute)"
+            ></span>
+          </div>
+          <p id="score-delta" class="hidden font-mono text-xs mb-3"></p>
+          <ul id="checklist" class="space-y-1"></ul>
+        </div>
+
+        <div
+          class="lg:col-span-2 panel rounded-2xl p-6"
+          style="box-shadow: var(--shadow)"
+        >
+          <h2 class="font-display font-semibold text-lg mb-5">
+            Score breakdown
+          </h2>
+          <div id="breakdown" class="space-y-4"></div>
+
+          <div class="mt-6 pt-5" style="border-top: 1px solid var(--line)">
+            <button
+              id="download-card-btn"
+              class="w-full font-mono text-xs tracking-wide rounded-lg py-2.5 transition focus-ring"
+              style="border: 1px solid var(--line-strong)"
+            >
+              ↓ DOWNLOAD READINESS CARD
+            </button>
+          </div>
+
+          <div class="mt-5 pt-5" style="border-top: 1px solid var(--line)">
+            <p class="font-mono text-xs mb-3" style="color: var(--mute)">
+              README BADGE
+            </p>
+            <img
+              id="badge-preview"
+              src=""
+              alt="PREFLIGHT readiness badge preview"
+              class="mb-3"
+              style="height: 20px"
+            />
+            <div class="flex gap-2">
+              <button
+                id="badge-copy-md"
+                type="button"
+                class="flex-1 font-mono text-xs rounded-lg py-2 transition focus-ring"
+                style="border: 1px solid var(--line-strong)"
+              >
+                copy markdown
+              </button>
+              <button
+                id="badge-copy-html"
+                type="button"
+                class="flex-1 font-mono text-xs rounded-lg py-2 transition focus-ring"
+                style="border: 1px solid var(--line-strong)"
+              >
+                copy html
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generated copy -->
+      <div class="mt-6 panel rounded-2xl p-6" style="box-shadow: var(--shadow)">
+        <div class="flex items-center justify-between mb-1">
+          <h2 class="font-display font-semibold text-lg">Listing copy</h2>
+          <span
+            id="copy-source-badge"
+            class="font-mono text-xs"
+            style="color: var(--mute)"
+          ></span>
+        </div>
+        <p class="text-sm mb-5" style="color: var(--mute)">
+          Ready to paste into your Product Hunt submission.
+        </p>
+
+        <div
+          id="thin-copy-warning"
+          class="hidden mb-4 text-xs font-mono rounded-lg px-3 py-2.5"
+          style="
+            background: color-mix(in srgb, var(--amber) 10%, transparent);
+            border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
+            color: var(--amber);
+          "
+        >
+          ⚠ Your repo has no description, so this draft is generic. Add a real
+          one-line description on GitHub and re-scan for much better copy.
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-4">
+          <div
+            class="rounded-xl p-4"
+            style="background: var(--panel2); border: 1px solid var(--line)"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-mono text-xs" style="color: var(--mute)"
+                >TAGLINE</span
+              >
+              <span id="tagline-count" class="font-mono text-xs"></span>
+            </div>
+            <p
+              id="tagline-out"
+              class="text-sm leading-relaxed min-h-[3rem]"
+            ></p>
+            <button
+              data-copy-target="tagline-out"
+              class="copy-btn mt-3 text-xs font-mono transition focus-ring rounded"
+              style="color: var(--amber)"
+            >
+              copy ⧉
+            </button>
+            <p
+              class="text-xs mt-2.5 pt-2.5 leading-relaxed"
+              style="
+                color: var(--mute);
+                opacity: 0.8;
+                border-top: 1px dashed var(--line);
+              "
+            >
+              Tip: lead with the specific problem you solve, not just what
+              category it's in — that's what makes someone stop scrolling.
+            </p>
+          </div>
+
+          <div
+            class="rounded-xl p-4"
+            style="background: var(--panel2); border: 1px solid var(--line)"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-mono text-xs" style="color: var(--mute)"
+                >DESCRIPTION</span
+              >
+              <span id="desc-count" class="font-mono text-xs"></span>
+            </div>
+            <p id="desc-out" class="text-sm leading-relaxed min-h-[3rem]"></p>
+            <button
+              data-copy-target="desc-out"
+              class="copy-btn mt-3 text-xs font-mono transition focus-ring rounded"
+              style="color: var(--amber)"
+            >
+              copy ⧉
+            </button>
+            <p
+              class="text-xs mt-2.5 pt-2.5 leading-relaxed"
+              style="
+                color: var(--mute);
+                opacity: 0.8;
+                border-top: 1px dashed var(--line);
+              "
+            >
+              Tip: name who it's for in the first few words — "For indie hackers
+              who…" reads better than a feature list.
+            </p>
+          </div>
+
+          <div
+            class="rounded-xl p-4"
+            style="background: var(--panel2); border: 1px solid var(--line)"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-mono text-xs" style="color: var(--mute)"
+                >MAKER COMMENT</span
+              >
+              <span
+                class="font-mono text-xs"
+                id="comment-count"
+                style="color: var(--mute)"
+              ></span>
+            </div>
+            <p
+              id="comment-out"
+              class="text-sm leading-relaxed min-h-[3rem] whitespace-pre-line"
+            ></p>
+            <button
+              data-copy-target="comment-out"
+              class="copy-btn mt-3 text-xs font-mono transition focus-ring rounded"
+              style="color: var(--amber)"
+            >
+              copy ⧉
+            </button>
+            <p
+              class="text-xs mt-2.5 pt-2.5 leading-relaxed"
+              style="
+                color: var(--mute);
+                opacity: 0.8;
+                border-top: 1px dashed var(--line);
+              "
+            >
+              Tip: post this within minutes of going live, then reply to every
+              comment for the first few hours — it matters more than the comment
+              itself.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- PH spec reference -->
+      <div class="mt-6 panel rounded-2xl p-6" style="box-shadow: var(--shadow)">
+        <details>
+          <summary class="flex items-center justify-between focus-ring rounded">
+            <h2 class="font-display font-semibold text-lg">
+              Product Hunt asset specs
+            </h2>
+            <svg
+              class="chev transition-transform w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--mute)"
+              stroke-width="2"
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </summary>
+          <div
+            class="mt-4 grid sm:grid-cols-2 gap-3 font-mono text-xs"
+            style="color: var(--mute)"
+          >
+            <div
+              class="rounded-lg px-3 py-2.5"
+              style="background: var(--panel2); border: 1px solid var(--line)"
+            >
+              Tagline — 60 characters max
+            </div>
+            <div
+              class="rounded-lg px-3 py-2.5"
+              style="background: var(--panel2); border: 1px solid var(--line)"
+            >
+              Description — 260 characters max
+            </div>
+            <div
+              class="rounded-lg px-3 py-2.5"
+              style="background: var(--panel2); border: 1px solid var(--line)"
+            >
+              Gallery — 5 to 8 images, 1270×760px
+            </div>
+            <div
+              class="rounded-lg px-3 py-2.5"
+              style="background: var(--panel2); border: 1px solid var(--line)"
+            >
+              Gallery video — 45 to 60s, works muted
+            </div>
+            <div
+              class="rounded-lg px-3 py-2.5"
+              style="background: var(--panel2); border: 1px solid var(--line)"
+            >
+              Best launch window — 12:01 AM PT, Tue–Thu
+            </div>
+            <div
+              class="rounded-lg px-3 py-2.5"
+              style="background: var(--panel2); border: 1px solid var(--line)"
+            >
+              Maker comment — post within minutes of going live
+            </div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <canvas id="card-canvas" width="1200" height="675" class="hidden"></canvas>
+
+    <div
+      id="toast-host"
+      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2"
+      aria-live="polite"
+    ></div>
+
+    <footer
+      class="relative z-10 border-t py-8"
+      style="border-color: var(--line)"
+    >
+      <div
+        class="max-w-6xl mx-auto px-5 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono"
+        style="color: var(--mute); opacity: 0.75"
+      >
+        <span
+          >PREFLIGHT — a pre-launch instrument, not a launch guarantee.</span
+        >
+        <span>Developed by ❤️ Reehan MP</span>
+      </div>
+    </footer>
+
+    <script>
+      (function () {
+        "use strict";
+
+        const $ = (sel, root = document) => root.querySelector(sel);
+        const $$ = (sel, root = document) =>
+          Array.from(root.querySelectorAll(sel));
+
+        // ---------- Theme toggle ----------
+        const themeToggle = $("#theme-toggle");
+        themeToggle.addEventListener("click", () => {
+          const isLight = document.documentElement.classList.toggle("light");
+          try {
+            localStorage.setItem("preflight-theme", isLight ? "light" : "dark");
+          } catch (e) {
+            /* storage unavailable — theme still applies for this session */
+          }
+        });
+
+        function cssVar(name) {
+          return getComputedStyle(document.documentElement)
+            .getPropertyValue(name)
+            .trim();
+        }
+
+        // ---------- Elements ----------
+        const form = $("#scan-form");
+        const repoInput = $("#repo-url");
+        const landingInput = $("#landing-url");
+        const apiKeyInput = $("#api-key");
+        const scanBtn = $("#scan-btn");
+        const formError = $("#form-error");
+        const loadingPanel = $("#loading-panel");
+        const loadingSteps = $("#loading-steps");
+        const results = $("#results");
+
+        const gaugeArc = $("#gauge-arc");
+        const gaugeNumber = $("#gauge-number");
+        const gaugeLabel = $("#gauge-label");
+        const gaugeStatus = $("#gauge-status");
+
+        $("#example-btn").addEventListener("click", () => {
+          repoInput.value = "https://github.com/tailwindlabs/tailwindcss";
+          repoInput.focus();
+        });
+
+        $("#rescan-btn").addEventListener("click", () => {
+          results.classList.add("hidden");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          repoInput.focus();
+        });
+
+        function toast(msg) {
+          const el = document.createElement("div");
+          el.className = "toast text-xs font-mono px-4 py-2 rounded-lg";
+          el.style.background = "var(--panel)";
+          el.style.border = "1px solid var(--line-strong)";
+          el.style.color = "var(--ink)";
+          el.style.boxShadow = "var(--shadow)";
+          el.textContent = msg;
+          $("#toast-host").appendChild(el);
+          setTimeout(() => el.remove(), 2000);
+        }
+
+        async function fetchWithTimeout(url, opts = {}, ms = 12000) {
+          const ctrl = new AbortController();
+          const id = setTimeout(() => ctrl.abort(), ms);
+          try {
+            return await fetch(url, { ...opts, signal: ctrl.signal });
+          } finally {
+            clearTimeout(id);
+          }
+        }
+
+        function parseGitHubUrl(raw) {
+          try {
+            const u = new URL(raw.trim());
+            if (!u.hostname.includes("github.com")) return null;
+            const parts = u.pathname.split("/").filter(Boolean);
+            if (parts.length < 2) return null;
+            return { owner: parts[0], repo: parts[1].replace(/\.git$/, "") };
+          } catch {
+            return null;
+          }
+        }
+
+        function daysSince(dateStr) {
+          if (!dateStr) return Infinity;
+          return (Date.now() - new Date(dateStr).getTime()) / 86400000;
+        }
+
+        function setStep(idx, state, label) {
+          const rows = $$("#loading-steps li");
+          const row = rows[idx];
+          if (!row) return;
+          const icon = row.querySelector(".step-icon");
+          const text = row.querySelector(".step-text");
+          text.textContent = label;
+          const map = {
+            active: { glyph: "◐", color: "var(--amber)" },
+            done: { glyph: "✓", color: "var(--green)" },
+            skip: { glyph: "–", color: "var(--mute)" },
+            fail: { glyph: "✕", color: "var(--red)" },
+          };
+          const m = map[state];
+          if (m) {
+            icon.textContent = m.glyph;
+            icon.style.color = m.color;
+          }
+        }
+
+        function buildLoadingSteps(hasLanding, hasKey) {
+          const steps = [
+            "Fetching repository metadata",
+            "Reading README",
+            hasLanding ?
+              "Analyzing landing page"
+            : "Landing page — skipped (not provided)",
+            hasKey ? "Generating AI-polished copy" : "Drafting template copy",
+            "Scoring readiness",
+          ];
+          loadingSteps.innerHTML = steps
+            .map(
+              (s) => `
+      <li class="flex items-center gap-3">
+        <span class="step-icon w-4" style="color: var(--mute)">○</span>
+        <span class="step-text" style="color: var(--mute)">${s}</span>
+      </li>`,
+            )
+            .join("");
+        }
+
+        // ---------- Checklist scoring ----------
+
+        function buildChecklist({ repoData, readme, landing }) {
+          const checks = [];
+
+          const desc = (repoData.description || "").trim();
+          if (!desc) {
+            checks.push({
+              id: "desc",
+              label: "Repo description set",
+              weight: 15,
+              status: "fail",
+              detail:
+                "No description field on the repo — this is the raw material for your tagline.",
+              fix: 'Go to your repo → Settings (or the ⚙️ next to "About" on the repo homepage) → add a one-line description of what it does and who it\'s for.',
+            });
+          } else if (desc.length <= 60) {
+            checks.push({
+              id: "desc",
+              label: "Repo description set",
+              weight: 15,
+              status: "pass",
+              detail: `"${desc}" — ${desc.length}/60 chars, already tagline-sized.`,
+            });
+          } else {
+            checks.push({
+              id: "desc",
+              label: "Repo description set",
+              weight: 15,
+              status: "warn",
+              detail: `Present but ${desc.length} chars — will need trimming for a 60-char tagline.`,
+              fix: 'Shorten the "About" description on your repo to under 60 characters — lead with the benefit, cut adjectives.',
+            });
+          }
+
+          const len = readme ? readme.length : 0;
+          const headerCount =
+            readme ? (readme.match(/^#{1,3}\s/gm) || []).length : 0;
+          if (!readme || len < 300) {
+            checks.push({
+              id: "readme",
+              label: "README has real depth",
+              weight: 15,
+              status: "fail",
+              detail:
+                "Missing or under 300 characters — hunters bounce off thin READMEs.",
+              fix: "Add a README.md to your repo root with: what it does, why you built it, a screenshot, and how to run it. Aim for at least 800 characters across a few sections.",
+            });
+          } else if (len < 800 || headerCount < 2) {
+            checks.push({
+              id: "readme",
+              label: "README has real depth",
+              weight: 15,
+              status: "warn",
+              detail: `${len} chars, ${headerCount} section headers — usable but thin on structure.`,
+              fix: "Break your README into clear ## sections — Overview, Features, Getting Started — so hunters can scan it in seconds.",
+            });
+          } else {
+            checks.push({
+              id: "readme",
+              label: "README has real depth",
+              weight: 15,
+              status: "pass",
+              detail: `${len} chars across ${headerCount} sections.`,
+            });
+          }
+
+          const hasImage =
+            readme ? /!\[.*?\]\(.*?\)|<img\s/i.test(readme) : false;
+          checks.push(
+            hasImage ?
+              {
+                id: "image",
+                label: "README shows a screenshot or demo image",
+                weight: 15,
+                status: "pass",
+                detail: "At least one image found in the README.",
+              }
+            : {
+                id: "image",
+                label: "README shows a screenshot or demo image",
+                weight: 15,
+                status: "fail",
+                detail:
+                  "No image markup found — a visual is often the difference between a click and a scroll-past.",
+                fix: "Take a clean screenshot or short GIF of the product working, upload it to the repo (or an issue, to get a hosted URL), and embed it near the top of the README with ![alt](url).",
+              },
+          );
+
+          const homepage = (repoData.homepage || "").trim();
+          checks.push(
+            homepage ?
+              {
+                id: "demo",
+                label: "Live demo link set",
+                weight: 15,
+                status: "pass",
+                detail: `Homepage field points to ${homepage}`,
+              }
+            : {
+                id: "demo",
+                label: "Live demo link set",
+                weight: 15,
+                status: "fail",
+                detail:
+                  "No homepage URL on the repo — add your deployed link so hunters don't have to hunt.",
+                fix: 'Deploy it (Netlify/Vercel/GitHub Pages all work), then paste that URL into the "Website" field in your repo\'s About section.',
+              },
+          );
+
+          checks.push(
+            repoData.license ?
+              {
+                id: "license",
+                label: "License present",
+                weight: 10,
+                status: "pass",
+                detail: `Licensed under ${repoData.license.spdx_id || repoData.license.name}.`,
+              }
+            : {
+                id: "license",
+                label: "License present",
+                weight: 10,
+                status: "warn",
+                detail:
+                  "No license detected — not a blocker, but developers checking the repo will notice.",
+                fix: 'On GitHub, use "Add file → Create new file", name it LICENSE, and pick a template (MIT is the common default for open-source demos).',
+              },
+          );
+
+          const topics = repoData.topics || [];
+          if (topics.length >= 3) {
+            checks.push({
+              id: "topics",
+              label: "Repo topics / tags set",
+              weight: 10,
+              status: "pass",
+              detail: `${topics.length} topics — helps discovery beyond Product Hunt too.`,
+            });
+          } else if (topics.length > 0) {
+            checks.push({
+              id: "topics",
+              label: "Repo topics / tags set",
+              weight: 10,
+              status: "warn",
+              detail: `Only ${topics.length} topic(s) — a few more would help.`,
+              fix: 'Click the ⚙️ next to "About" on your repo page and add 3-5 more relevant topics.',
+            });
+          } else {
+            checks.push({
+              id: "topics",
+              label: "Repo topics / tags set",
+              weight: 10,
+              status: "fail",
+              detail: "No topics set on the repo.",
+              fix: 'Click the ⚙️ next to "About" on your repo page and add 3-5 topics like your language, framework, and category.',
+            });
+          }
+
+          const days = daysSince(repoData.pushed_at);
+          if (days <= 60) {
+            checks.push({
+              id: "activity",
+              label: "Actively maintained",
+              weight: 10,
+              status: "pass",
+              detail: `Last push ${Math.round(days)} days ago.`,
+            });
+          } else if (days <= 180) {
+            checks.push({
+              id: "activity",
+              label: "Actively maintained",
+              weight: 10,
+              status: "warn",
+              detail: `Last push ${Math.round(days)} days ago — fine, but a fresh commit before launch signals momentum.`,
+              fix: "Push even a small commit (README tweak, changelog entry) a day or two before you launch.",
+            });
+          } else {
+            checks.push({
+              id: "activity",
+              label: "Actively maintained",
+              weight: 10,
+              status: "fail",
+              detail: `Last push ${Math.round(days)} days ago — consider a pre-launch commit.`,
+              fix: "Push a commit before launch day — even a README or changelog update signals the project is alive.",
+            });
+          }
+
+          if (landing === null) {
+            checks.push({
+              id: "title",
+              label: "Landing page title tag",
+              weight: 5,
+              status: "skip",
+              detail: "Not checked — no landing page URL provided.",
+            });
+            checks.push({
+              id: "metadesc",
+              label: "Landing page meta description",
+              weight: 5,
+              status: "skip",
+              detail: "Not checked — no landing page URL provided.",
+            });
+          } else if (landing.error) {
+            checks.push({
+              id: "title",
+              label: "Landing page title tag",
+              weight: 5,
+              status: "skip",
+              detail:
+                "Could not fetch the page automatically — check manually.",
+            });
+            checks.push({
+              id: "metadesc",
+              label: "Landing page meta description",
+              weight: 5,
+              status: "skip",
+              detail:
+                "Could not fetch the page automatically — check manually.",
+            });
+          } else {
+            const t = landing.title || "";
+            checks.push(
+              t ?
+                {
+                  id: "title",
+                  label: "Landing page title tag",
+                  weight: 5,
+                  status: t.length <= 60 ? "pass" : "warn",
+                  detail: `"${t}" — ${t.length} chars.`,
+                  fix:
+                    t.length > 60 ?
+                      "Shorten your <title> tag to under 60 characters so it doesn't get cut off in search results and browser tabs."
+                    : undefined,
+                }
+              : {
+                  id: "title",
+                  label: "Landing page title tag",
+                  weight: 5,
+                  status: "fail",
+                  detail: "No <title> tag found.",
+                  fix: "Add a <title>Your Product — one-line benefit</title> tag inside your page's <head>.",
+                },
+            );
+
+            const md = landing.metaDescription || "";
+            checks.push(
+              md ?
+                {
+                  id: "metadesc",
+                  label: "Landing page meta description",
+                  weight: 5,
+                  status: md.length <= 160 ? "pass" : "warn",
+                  detail: `${md.length} chars.`,
+                  fix:
+                    md.length > 160 ?
+                      "Trim your meta description to under 160 characters so search engines don't cut it off."
+                    : undefined,
+                }
+              : {
+                  id: "metadesc",
+                  label: "Landing page meta description",
+                  weight: 5,
+                  status: "fail",
+                  detail: "No meta description found.",
+                  fix: 'Add <meta name="description" content="..."> in your <head> — a plain-language sentence about what the product does.',
+                },
+            );
+          }
+
+          return checks;
+        }
+
+        function scoreChecklist(checks) {
+          const active = checks.filter((c) => c.status !== "skip");
+          const totalWeight = active.reduce((s, c) => s + c.weight, 0) || 1;
+          const val = { pass: 1, warn: 0.5, fail: 0 };
+          const earned = active.reduce(
+            (s, c) => s + c.weight * val[c.status],
+            0,
+          );
+          return Math.round((earned / totalWeight) * 100);
+        }
+
+        function statusMeta(score) {
+          if (score >= 80)
+            return { label: "GO", varName: "--green", word: "Ready to launch" };
+          if (score >= 55)
+            return {
+              label: "CAUTION",
+              varName: "--amber",
+              word: "Needs a few fixes",
+            };
+          return {
+            label: "HOLD",
+            varName: "--red",
+            word: "Not launch-ready yet",
+          };
+        }
+
+        function renderGauge(score) {
+          const meta = statusMeta(score);
+          const color = cssVar(meta.varName);
+          gaugeArc.style.stroke = color;
+          gaugeArc.style.strokeDashoffset = String(100 - score);
+          gaugeNumber.textContent = String(score);
+          gaugeLabel.textContent = meta.label;
+          gaugeStatus.innerHTML = `<span class="font-mono text-xs tracking-widest" style="color:${color}">● ${meta.word.toUpperCase()}</span>`;
+        }
+
+        function iconFor(status) {
+          if (status === "pass") return { glyph: "✓", varName: "--green" };
+          if (status === "warn") return { glyph: "!", varName: "--amber" };
+          if (status === "fail") return { glyph: "✕", varName: "--red" };
+          return { glyph: "–", varName: "--mute" };
+        }
+
+        function escapeHtml(str) {
+          return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+        }
+
+        function mitLicenseText(repoData) {
+          const year = new Date().getFullYear();
+          const owner =
+            (repoData.owner && repoData.owner.login) ||
+            (repoData.full_name ?
+              repoData.full_name.split("/")[0]
+            : "Your Name");
+          return `MIT License
+
+Copyright (c) ${year} ${owner}
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.`;
+        }
+
+        function readmeTemplateText(repoData) {
+          const name = repoData.name;
+          const desc = (
+            repoData.description || `A ${repoData.language || ""} project`
+          ).trim();
+          const lang = repoData.language || "your stack";
+          const cloneUrl =
+            repoData.html_url ?
+              `${repoData.html_url}.git`
+            : `https://github.com/you/${name}.git`;
+          return `# ${name}
+
+${desc}
+
+![Screenshot](./screenshot.png)
+
+## Features
+
+- Feature one
+- Feature two
+- Feature three
+
+## Getting Started
+
+\`\`\`bash
+git clone ${cloneUrl}
+cd ${name}
+# install + run steps here
+\`\`\`
+
+## Built With
+
+- ${lang}
+
+## License
+
+MIT`;
+        }
+
+        function suggestedTopicsText(repoData) {
+          const lang = (repoData.language || "").toLowerCase();
+          const base = [
+            lang,
+            "opensource",
+            "developer-tools",
+            "productivity",
+            "webapp",
+          ].filter(Boolean);
+          return [...new Set(base)].slice(0, 5).join(", ");
+        }
+
+        function suggestedDescriptionText(repoData) {
+          const langBit =
+            repoData.language ? ` — a ${repoData.language} project` : "";
+          return truncate(`${repoData.name}${langBit}, ready to try.`, 60);
+        }
+
+        function suggestedTitleTagText(repoData) {
+          const desc =
+            repoData.description ||
+            (repoData.language ?
+              `a ${repoData.language} project`
+            : "an open-source project");
+          return `<title>${truncate(`${repoData.name} — ${desc}`, 60)}</title>`;
+        }
+
+        function suggestedMetaDescText(repoData) {
+          const desc =
+            repoData.description ||
+            (repoData.language ?
+              `a ${repoData.language} project`
+            : "an open source project");
+          const lowerFirst = desc.charAt(0).toLowerCase() + desc.slice(1);
+          return `<meta name="description" content="${truncate(`${repoData.name} is ${lowerFirst}. Try it out and see how it fits your workflow.`, 160)}">`;
+        }
+
+        function buildFixSnippet(id, repoData) {
+          switch (id) {
+            case "desc":
+              return {
+                type: "text",
+                label: "Suggested description",
+                content: suggestedDescriptionText(repoData),
+              };
+            case "readme":
+              return {
+                type: "text",
+                label: "Starter README.md",
+                content: readmeTemplateText(repoData),
+              };
+            case "image":
+              return {
+                type: "text",
+                label: "Markdown to embed once you have a screenshot",
+                content: "![Screenshot](./screenshot.png)",
+              };
+            case "demo":
+              return {
+                type: "links",
+                label: "Deploy in a few clicks",
+                links: [
+                  {
+                    label: "Deploy on Netlify",
+                    href: "https://app.netlify.com/start",
+                  },
+                  { label: "Deploy on Vercel", href: "https://vercel.com/new" },
+                ],
+              };
+            case "license":
+              return {
+                type: "text",
+                label: "LICENSE file content (MIT)",
+                content: mitLicenseText(repoData),
+              };
+            case "topics":
+              return {
+                type: "text",
+                label: "Suggested topics",
+                content: suggestedTopicsText(repoData),
+              };
+            case "activity":
+              return {
+                type: "text",
+                label: "Empty pre-launch checkpoint commit",
+                content:
+                  'git commit --allow-empty -m "chore: pre-launch checkpoint"\ngit push',
+              };
+            case "title":
+              return {
+                type: "text",
+                label: "Suggested <title> tag",
+                content: suggestedTitleTagText(repoData),
+              };
+            case "metadesc":
+              return {
+                type: "text",
+                label: "Suggested meta description tag",
+                content: suggestedMetaDescText(repoData),
+              };
+            default:
+              return null;
+          }
+        }
+
+        const fixSnippetStore = {};
+
+        function renderPriorityFixes(checks, repoData) {
+          const val = { pass: 1, warn: 0.5, fail: 0 };
+          const actionable = checks
+            .filter((c) => c.status !== "skip" && c.status !== "pass" && c.fix)
+            .map((c) => ({ ...c, impact: c.weight * (1 - val[c.status]) }))
+            .sort((a, b) => b.impact - a.impact)
+            .slice(0, 4);
+
+          const panel = $("#priority-fixes");
+          if (actionable.length === 0) {
+            panel.classList.add("hidden");
+            return;
+          }
+          panel.classList.remove("hidden");
+
+          Object.keys(fixSnippetStore).forEach(
+            (k) => delete fixSnippetStore[k],
+          );
+
+          $("#priority-fixes-list").innerHTML = actionable
+            .map((c, i) => {
+              const snippet = buildFixSnippet(c.id, repoData);
+              const toggleId = `fix-body-${c.id}`;
+              let bodyHtml = "";
+              if (snippet && snippet.type === "text") {
+                fixSnippetStore[toggleId] = snippet.content;
+                bodyHtml = `
+          <div id="${toggleId}" class="hidden mt-3">
+            <div class="rounded-lg p-3 font-mono text-xs whitespace-pre-wrap max-h-48 overflow-y-auto" style="background: var(--panel); border: 1px solid var(--line)">${escapeHtml(snippet.content)}</div>
+            <button type="button" class="fix-copy-btn mt-2 text-xs font-mono focus-ring rounded" data-snippet="${toggleId}" style="color: var(--amber)">copy ⧉</button>
+          </div>`;
+              } else if (snippet && snippet.type === "links") {
+                bodyHtml = `
+          <div id="${toggleId}" class="hidden mt-3 flex gap-2 flex-wrap">
+            ${snippet.links.map((l) => `<a href="${l.href}" target="_blank" rel="noopener noreferrer" class="font-mono text-xs px-3 py-1.5 rounded-lg focus-ring" style="border: 1px solid var(--line-strong)">${l.label} ↗</a>`).join("")}
+          </div>`;
+              }
+              return `
+      <li class="py-3" style="${i < actionable.length - 1 ? "border-bottom:1px solid var(--line)" : ""}">
+        <div class="flex gap-3">
+          <span class="font-mono text-xs shrink-0 w-5 h-5 rounded-full flex items-center justify-center" style="background: color-mix(in srgb, var(--amber) 16%, transparent); color: var(--amber)">${i + 1}</span>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between gap-3">
+              <p class="text-sm font-medium">${c.label}</p>
+              ${snippet ? `<button type="button" class="fix-toggle-btn font-mono text-xs shrink-0 focus-ring rounded" data-target="${toggleId}" style="color: var(--amber)" aria-expanded="false">show fix ⌄</button>` : ""}
+            </div>
+            <p class="text-xs mt-0.5 leading-relaxed" style="color: var(--mute)">${c.fix}</p>
+            ${bodyHtml}
+          </div>
+        </div>
+      </li>`;
+            })
+            .join("");
+        }
+
+        $("#priority-fixes-list").addEventListener("click", (e) => {
+          const toggleBtn = e.target.closest(".fix-toggle-btn");
+          if (toggleBtn) {
+            const target = document.getElementById(toggleBtn.dataset.target);
+            if (!target) return;
+            const nowHidden = target.classList.toggle("hidden");
+            toggleBtn.textContent = nowHidden ? "show fix ⌄" : "hide fix ⌃";
+            toggleBtn.setAttribute("aria-expanded", String(!nowHidden));
+            return;
+          }
+          const copyBtn = e.target.closest(".fix-copy-btn");
+          if (copyBtn) {
+            const text = fixSnippetStore[copyBtn.dataset.snippet] || "";
+            navigator.clipboard.writeText(text).then(() => {
+              toast("Copied to clipboard");
+              const original = copyBtn.textContent;
+              copyBtn.textContent = "copied ✓";
+              setTimeout(() => {
+                copyBtn.textContent = original;
+              }, 1500);
+            });
+          }
+        });
+
+        function renderChecklist(checks) {
+          const list = $("#checklist");
+          list.innerHTML = checks
+            .map((c, i) => {
+              const ic = iconFor(c.status);
+              const color = cssVar(ic.varName);
+              return `
+      <li class="flip-row flex items-start gap-3 py-3" style="animation-delay:${i * 60}ms; ${i < checks.length - 1 ? "border-bottom:1px solid var(--line)" : ""}">
+        <span class="w-6 h-6 shrink-0 rounded-full flex items-center justify-center font-mono text-xs" style="border:1px solid ${color}66; background:${color}1A; color:${color}">${ic.glyph}</span>
+        <div class="min-w-0">
+          <p class="text-sm font-medium">${c.label}</p>
+          <p class="text-xs mt-0.5 leading-relaxed" style="color: var(--mute)">${c.detail}</p>
+        </div>
+      </li>`;
+            })
+            .join("");
+        }
+
+        function renderBreakdown(checks) {
+          const groups = [
+            { label: "Listing copy", ids: ["desc"] },
+            { label: "README quality", ids: ["readme", "image"] },
+            { label: "Launch assets", ids: ["demo", "title", "metadesc"] },
+            {
+              label: "Project signals",
+              ids: ["license", "topics", "activity"],
+            },
+          ];
+          const val = { pass: 1, warn: 0.5, fail: 0 };
+          const host = $("#breakdown");
+          host.innerHTML = groups
+            .map((g) => {
+              const items = checks.filter(
+                (c) => g.ids.includes(c.id) && c.status !== "skip",
+              );
+              if (items.length === 0) return "";
+              const w = items.reduce((s, c) => s + c.weight, 0) || 1;
+              const e = items.reduce((s, c) => s + c.weight * val[c.status], 0);
+              const pct = Math.round((e / w) * 100);
+              const meta = statusMeta(pct);
+              const color = cssVar(meta.varName);
+              return `
+      <div>
+        <div class="flex items-center justify-between text-xs font-mono mb-1.5">
+          <span style="color: var(--mute)">${g.label}</span>
+          <span style="color:${color}">${pct}%</span>
+        </div>
+        <div class="h-1.5 rounded-full overflow-hidden" style="background: var(--panel2)">
+          <div class="h-full rounded-full" style="width:${pct}%; background:${color}"></div>
+        </div>
+      </div>`;
+            })
+            .join("");
+        }
+
+        // ---------- Copy generation ----------
+
+        function truncate(str, n) {
+          if (str.length <= n) return str;
+          return str.slice(0, n - 1).trimEnd() + "…";
+        }
+
+        function templateCopy(repoData) {
+          const name = repoData.name;
+          const hasRealDesc = !!(repoData.description || "").trim();
+          const desc =
+            hasRealDesc ? repoData.description.trim()
+            : repoData.language ? `a ${repoData.language} project`
+            : "a project";
+          // Only mention the language separately when it isn't already implied by a real description.
+          const lang =
+            !hasRealDesc && repoData.language ? ""
+            : repoData.language ? ` — built with ${repoData.language}`
+            : "";
+
+          const tagline = truncate(
+            `${name} — ${desc}`.replace(/\s+/g, " "),
+            60,
+          );
+          const description = truncate(
+            `${name} is ${desc.charAt(0).toLowerCase() + desc.slice(1)}${lang}. Open source and ready to try — check out the repo, star it if it's useful, and let me know what you'd want next.`,
+            260,
+          );
+          const comment = `Hey hunters 👋
+
+I built ${name} because ${desc.charAt(0).toLowerCase() + desc.slice(1)}.
+
+It's fully open source${lang ? lang.replace(" — built", ", built") : ""} — I'd love feedback on what's missing, and I'll be around all day to answer questions in the comments.
+
+Thanks for checking it out!`;
+
+          return {
+            tagline,
+            description,
+            comment,
+            source: "template",
+            thin: !hasRealDesc,
+          };
+        }
+
+        async function aiCopy(repoData, readme, apiKey) {
+          const trimmedReadme = (readme || "").slice(0, 6000);
+          const prompt = `You are helping a developer prepare their Product Hunt launch listing.
+
+Repo name: ${repoData.name}
+Existing description: ${repoData.description || "(none)"}
+Primary language: ${repoData.language || "(unknown)"}
+README (may be truncated):
+"""
+${trimmedReadme}
+"""
+
+Write launch copy for Product Hunt. Respond with ONLY a JSON object, no markdown fences, no preamble, in this exact shape:
+{"tagline": "...", "description": "...", "comment": "..."}
+
+Rules:
+- tagline: <= 60 characters, punchy, specific about what it does, no buzzwords like "revolutionary" or "game-changing".
+- description: <= 260 characters, plain language, states who it's for and the concrete benefit.
+- comment: a maker's first comment, 3 short paragraphs, warm and specific, explains why it was built and invites feedback. No emojis except one at most.`;
+
+          const res = await fetchWithTimeout(
+            "https://api.anthropic.com/v1/messages",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-api-key": apiKey,
+                "anthropic-version": "2023-06-01",
+                "anthropic-dangerous-direct-browser-access": "true",
+              },
+              body: JSON.stringify({
+                model: "claude-sonnet-5",
+                max_tokens: 1000,
+                messages: [{ role: "user", content: prompt }],
+              }),
+            },
+            25000,
+          );
+
+          if (!res.ok) {
+            const body = await res.text().catch(() => "");
+            throw new Error(`API error ${res.status}: ${body.slice(0, 200)}`);
+          }
+          const data = await res.json();
+          const textBlock = (data.content || []).find((b) => b.type === "text");
+          if (!textBlock) throw new Error("No text in response");
+          const clean = textBlock.text.replace(/```json|```/g, "").trim();
+          const parsed = JSON.parse(clean);
+          return { ...parsed, source: "ai" };
+        }
+
+        function countColor(len, max) {
+          if (len === 0) return cssVar("--mute");
+          if (len > max) return cssVar("--red");
+          if (len > max * 0.9) return cssVar("--amber");
+          return cssVar("--green");
+        }
+
+        function renderCopy(copy) {
+          $("#tagline-out").textContent = copy.tagline || "";
+          $("#desc-out").textContent = copy.description || "";
+          $("#comment-out").textContent = copy.comment || "";
+
+          const tl = (copy.tagline || "").length;
+          const dl = (copy.description || "").length;
+          const cl = (copy.comment || "").length;
+
+          const tlEl = $("#tagline-count");
+          tlEl.textContent = `${tl}/60`;
+          tlEl.style.color = countColor(tl, 60);
+          const dlEl = $("#desc-count");
+          dlEl.textContent = `${dl}/260`;
+          dlEl.style.color = countColor(dl, 260);
+          $("#comment-count").textContent = `${cl} chars`;
+
+          $("#copy-source-badge").textContent =
+            copy.source === "ai" ? "AI-GENERATED · CLAUDE" : "TEMPLATE DRAFT";
+          $("#thin-copy-warning").classList.toggle("hidden", !copy.thin);
+        }
+
+        $$(".copy-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const target = $("#" + btn.dataset.copyTarget);
+            navigator.clipboard.writeText(target.textContent || "").then(() => {
+              toast("Copied to clipboard");
+              const original = btn.textContent;
+              btn.textContent = "copied ✓";
+              btn.classList.add("copied");
+              setTimeout(() => {
+                btn.textContent = original;
+                btn.classList.remove("copied");
+              }, 1500);
+            });
+          });
+        });
+
+        // ---------- Landing page fetch (with proxy fallback chain) ----------
+
+        async function tryProxy(url, buildUrl, ms) {
+          const res = await fetchWithTimeout(buildUrl(url), {}, ms);
+          if (!res.ok) throw new Error("fetch failed");
+          return res.text();
+        }
+
+        async function analyzeLanding(url) {
+          const proxies = [
+            (u) =>
+              `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+            (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+          ];
+          for (const buildUrl of proxies) {
+            try {
+              const html = await tryProxy(url, buildUrl, 10000);
+              const doc = new DOMParser().parseFromString(html, "text/html");
+              const title = (
+                doc.querySelector("title")?.textContent || ""
+              ).trim();
+              const metaDescription = (
+                doc
+                  .querySelector('meta[name="description"]')
+                  ?.getAttribute("content") || ""
+              ).trim();
+              if (title || metaDescription) return { title, metaDescription };
+            } catch {
+              /* try next proxy */
+            }
+          }
+          return { error: true };
+        }
+
+        // ---------- Share card (kept brand-dark regardless of site theme) ----------
+
+        function downloadCard(score, repoName, meta) {
+          const canvas = $("#card-canvas");
+          const ctx = canvas.getContext("2d");
+          const W = canvas.width,
+            H = canvas.height;
+          const color = { green: "#3ED88B", amber: "#F5A623", red: "#FF6B6B" }[
+            meta.varName.replace("--", "")
+          ];
+
+          const grad = ctx.createLinearGradient(0, 0, W, H);
+          grad.addColorStop(0, "#0B1120");
+          grad.addColorStop(1, "#121A2E");
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, W, H);
+
+          ctx.strokeStyle = "rgba(148,163,184,0.18)";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(20, 20, W - 40, H - 40);
+
+          ctx.fillStyle = "#F5A623";
+          ctx.font = '600 22px "Space Grotesk", sans-serif';
+          ctx.fillText("PREFLIGHT", 60, 90);
+          ctx.fillStyle = "#8B97AC";
+          ctx.font = '400 16px "JetBrains Mono", monospace';
+          ctx.fillText("PRODUCT HUNT READINESS", 60, 118);
+
+          const cx = 300,
+            cy = 400,
+            r = 160;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, Math.PI, 2 * Math.PI, false);
+          ctx.strokeStyle = "#1B2540";
+          ctx.lineWidth = 26;
+          ctx.lineCap = "round";
+          ctx.stroke();
+
+          const frac = score / 100;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, Math.PI, Math.PI + Math.PI * frac, false);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 26;
+          ctx.lineCap = "round";
+          ctx.stroke();
+
+          ctx.fillStyle = "#E8EDF4";
+          ctx.font = '700 90px "JetBrains Mono", monospace';
+          ctx.textAlign = "center";
+          ctx.fillText(String(score), cx, cy - 20);
+          ctx.font = '600 20px "JetBrains Mono", monospace';
+          ctx.fillStyle = color;
+          ctx.fillText(meta.label, cx, cy + 20);
+
+          ctx.textAlign = "left";
+          ctx.fillStyle = "#E8EDF4";
+          ctx.font = '600 28px "Space Grotesk", sans-serif';
+          ctx.fillText(repoName, 620, 340);
+          ctx.fillStyle = "#8B97AC";
+          ctx.font = '400 16px "JetBrains Mono", monospace';
+          wrapText(ctx, meta.word, 620, 380, 520, 24);
+
+          ctx.fillStyle = "#8B97AC";
+          ctx.font = '400 13px "JetBrains Mono", monospace';
+          ctx.fillText(
+            "preflight — checked locally, no data leaves the browser",
+            60,
+            H - 45,
+          );
+
+          const link = document.createElement("a");
+          link.download = `${repoName}-launch-readiness.png`;
+          link.href = canvas.toDataURL("image/png");
+          link.click();
+        }
+
+        function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+          const words = text.split(" ");
+          let line = "",
+            lines = [];
+          for (const w of words) {
+            const test = line + w + " ";
+            if (ctx.measureText(test).width > maxWidth && line) {
+              lines.push(line);
+              line = w + " ";
+            } else {
+              line = test;
+            }
+          }
+          lines.push(line);
+          lines.forEach((l, i) =>
+            ctx.fillText(l.trim(), x, y + i * lineHeight),
+          );
+        }
+
+        // ---------- Main flow ----------
+
+        let lastResult = null;
+
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          formError.classList.add("hidden");
+
+          const parsed = parseGitHubUrl(repoInput.value);
+          if (!parsed) {
+            formError.textContent =
+              "That doesn't look like a GitHub repo URL — try https://github.com/owner/repo";
+            formError.classList.remove("hidden");
+            return;
+          }
+
+          const landingUrl = landingInput.value.trim();
+          const apiKey = apiKeyInput.value.trim();
+
+          scanBtn.disabled = true;
+          scanBtn.textContent = "Scanning…";
+          loadingPanel.classList.remove("hidden");
+          results.classList.add("hidden");
+          buildLoadingSteps(!!landingUrl, !!apiKey);
+          loadingPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+
+          try {
+            setStep(0, "active", "Fetching repository metadata");
+            const repoRes = await fetchWithTimeout(
+              `https://api.github.com/repos/${parsed.owner}/${parsed.repo}`,
+            );
+            if (!repoRes.ok)
+              throw new Error(
+                repoRes.status === 404 ?
+                  "Repository not found — check the URL and that it's public."
+                : `GitHub API error ${repoRes.status}`,
+              );
+            const repoData = await repoRes.json();
+            setStep(0, "done", "Repository metadata fetched");
+
+            setStep(1, "active", "Reading README");
+            let readme = "";
+            try {
+              const readmeRes = await fetchWithTimeout(
+                `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/readme`,
+                {
+                  headers: { Accept: "application/vnd.github.v3.raw" },
+                },
+              );
+              if (readmeRes.ok) readme = await readmeRes.text();
+            } catch {
+              /* leave empty */
+            }
+            setStep(
+              1,
+              readme ? "done" : "fail",
+              readme ? "README read" : "No README found",
+            );
+
+            let landing = null;
+            if (landingUrl) {
+              setStep(2, "active", "Analyzing landing page");
+              landing = await analyzeLanding(landingUrl);
+              setStep(
+                2,
+                landing.error ? "fail" : "done",
+                landing.error ?
+                  "Landing page unreachable — skipped"
+                : "Landing page analyzed",
+              );
+            } else {
+              setStep(2, "skip", "Landing page — skipped (not provided)");
+            }
+
+            setStep(
+              3,
+              "active",
+              apiKey ? "Generating AI-polished copy" : "Drafting template copy",
+            );
+            let copy;
+            if (apiKey) {
+              try {
+                copy = await aiCopy(repoData, readme, apiKey);
+                setStep(3, "done", "AI copy generated");
+              } catch (err) {
+                copy = templateCopy(repoData);
+                setStep(
+                  3,
+                  "fail",
+                  "AI generation failed — used template instead",
+                );
+                toast("AI copy failed, showing template draft");
+              }
+            } else {
+              copy = templateCopy(repoData);
+              setStep(3, "done", "Template copy drafted");
+            }
+
+            setStep(4, "active", "Scoring readiness");
+            const checks = buildChecklist({ repoData, readme, landing });
+            const score = scoreChecklist(checks);
+            setStep(4, "done", "Scoring complete");
+
+            lastResult = { repoData, score, checks };
+
+            await new Promise((r) => setTimeout(r, 350));
+            loadingPanel.classList.add("hidden");
+            results.classList.remove("hidden");
+
+            renderGauge(score);
+            renderPriorityFixes(checks, repoData);
+            renderChecklist(checks);
+            renderBreakdown(checks);
+            renderCopy(copy);
+            renderBadge(score);
+            $("#repo-badge").textContent = `${parsed.owner}/${parsed.repo}`;
+
+            const repoFullName = `${parsed.owner}/${parsed.repo}`;
+            const historyBeforeThisRun = loadHistory();
+            renderScoreDelta(repoFullName, score, historyBeforeThisRun);
+            const updatedHistory = addHistoryEntry(repoFullName, score);
+            renderRecentScans(updatedHistory);
+
+            results.scrollIntoView({ behavior: "smooth", block: "start" });
+          } catch (err) {
+            loadingPanel.classList.add("hidden");
+            formError.textContent =
+              err.message || "Something went wrong — please try again.";
+            formError.classList.remove("hidden");
+          } finally {
+            scanBtn.disabled = false;
+            scanBtn.textContent = "Run pre-flight check";
+          }
+        });
+
+        $("#download-card-btn").addEventListener("click", () => {
+          if (!lastResult) return;
+          const meta = statusMeta(lastResult.score);
+          downloadCard(lastResult.score, lastResult.repoData.name, meta);
+          toast("Card downloaded");
+        });
+
+        // ---------- README badge generator ----------
+
+        let badgeSnippets = { markdown: "", html: "" };
+
+        function badgeColorHex(score) {
+          if (score >= 80) return "3ED88B";
+          if (score >= 55) return "F5A623";
+          return "FF6B6B";
+        }
+
+        function renderBadge(score) {
+          const colorHex = badgeColorHex(score);
+          const url = `https://img.shields.io/badge/PREFLIGHT-${score}%2F100-${colorHex}`;
+          badgeSnippets.markdown = `![PREFLIGHT Score](${url})`;
+          badgeSnippets.html = `<img src="${url}" alt="PREFLIGHT readiness score: ${score}/100" />`;
+          $("#badge-preview").src = url;
+        }
+
+        $("#badge-copy-md").addEventListener("click", (e) => {
+          navigator.clipboard.writeText(badgeSnippets.markdown).then(() => {
+            toast("Markdown badge copied");
+            const btn = e.currentTarget;
+            const original = btn.textContent;
+            btn.textContent = "copied ✓";
+            setTimeout(() => {
+              btn.textContent = original;
+            }, 1500);
+          });
+        });
+        $("#badge-copy-html").addEventListener("click", (e) => {
+          navigator.clipboard.writeText(badgeSnippets.html).then(() => {
+            toast("HTML badge copied");
+            const btn = e.currentTarget;
+            const original = btn.textContent;
+            btn.textContent = "copied ✓";
+            setTimeout(() => {
+              btn.textContent = original;
+            }, 1500);
+          });
+        });
+
+        // ---------- Score history tracker ----------
+
+        const HISTORY_KEY = "preflight-history";
+
+        function loadHistory() {
+          try {
+            return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+          } catch (e) {
+            return [];
+          }
+        }
+        function saveHistory(list) {
+          try {
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+          } catch (e) {
+            /* storage unavailable — history just won't persist this session */
+          }
+        }
+        function addHistoryEntry(repo, score) {
+          const list = loadHistory();
+          list.unshift({ repo, score, ts: Date.now() });
+          const trimmed = list.slice(0, 20);
+          saveHistory(trimmed);
+          return trimmed;
+        }
+        function timeAgoMs(ts) {
+          const diff = (Date.now() - ts) / 1000;
+          const units = [
+            [31536000, "y"],
+            [2592000, "mo"],
+            [604800, "w"],
+            [86400, "d"],
+            [3600, "h"],
+            [60, "m"],
+          ];
+          for (const [s, label] of units) {
+            if (diff >= s) return Math.floor(diff / s) + label + " ago";
+          }
+          return "just now";
+        }
+
+        function renderRecentScans(list) {
+          const section = $("#recent-scans-section");
+          if (!list.length) {
+            section.classList.add("hidden");
+            return;
+          }
+          section.classList.remove("hidden");
+          $("#recent-scans-list").innerHTML = list
+            .slice(0, 5)
+            .map((e, i) => {
+              const meta = statusMeta(e.score);
+              const color = cssVar(meta.varName);
+              return `
+      <li>
+        <button type="button" class="history-row w-full flex items-center justify-between gap-3 py-2.5 text-left focus-ring rounded" data-repo="${escapeHtml(e.repo)}" style="${i < Math.min(list.length, 5) - 1 ? "border-bottom:1px solid var(--line)" : ""}">
+          <span class="text-sm font-mono truncate">${escapeHtml(e.repo)}</span>
+          <span class="flex items-center gap-3 shrink-0">
+            <span class="font-mono text-xs font-semibold" style="color:${color}">${e.score}</span>
+            <span class="font-mono text-xs" style="color: var(--mute)">${timeAgoMs(e.ts)}</span>
+          </span>
+        </button>
+      </li>`;
+            })
+            .join("");
+        }
+
+        $("#recent-scans-list").addEventListener("click", (e) => {
+          const row = e.target.closest(".history-row");
+          if (!row) return;
+          repoInput.value = `https://github.com/${row.dataset.repo}`;
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          repoInput.focus();
+        });
+
+        $("#clear-history-btn").addEventListener("click", () => {
+          saveHistory([]);
+          renderRecentScans([]);
+          toast("History cleared");
+        });
+
+        function renderScoreDelta(repo, score, historyBeforeThisRun) {
+          const el = $("#score-delta");
+          const prev = historyBeforeThisRun.find((e) => e.repo === repo);
+          if (!prev) {
+            el.classList.add("hidden");
+            return;
+          }
+          const delta = score - prev.score;
+          el.classList.remove("hidden");
+          if (delta > 0) {
+            el.style.color = cssVar("--green");
+            el.textContent = `↑ +${delta} since your last scan (was ${prev.score}, ${timeAgoMs(prev.ts)})`;
+          } else if (delta < 0) {
+            el.style.color = cssVar("--red");
+            el.textContent = `↓ ${delta} since your last scan (was ${prev.score}, ${timeAgoMs(prev.ts)})`;
+          } else {
+            el.style.color = cssVar("--mute");
+            el.textContent = `→ unchanged since your last scan (${timeAgoMs(prev.ts)})`;
+          }
+        }
+
+        // show any saved history on first load
+        renderRecentScans(loadHistory());
+
+        // ---------- Gallery image check ----------
+
+        const galleryToggleBtn = $("#gallery-toggle-btn");
+        const galleryCollapse = $("#gallery-collapse");
+        let galleryPanelOpen = false;
+
+        function setGalleryPanelOpen(open) {
+          galleryPanelOpen = open;
+          galleryToggleBtn.setAttribute("aria-expanded", String(open));
+          galleryToggleBtn.querySelector(
+            ".gallery-toggle-chev",
+          ).style.transform = open ? "rotate(180deg)" : "rotate(0deg)";
+          if (open) {
+            galleryCollapse.classList.add("open");
+            galleryCollapse.style.maxHeight =
+              galleryCollapse.scrollHeight + "px";
+            setTimeout(
+              () =>
+                galleryCollapse.scrollIntoView({
+                  behavior: "smooth",
+                  block: "nearest",
+                }),
+              150,
+            );
+          } else {
+            galleryCollapse.style.maxHeight =
+              galleryCollapse.scrollHeight + "px";
+            requestAnimationFrame(() => {
+              galleryCollapse.style.maxHeight = "0px";
+              galleryCollapse.classList.remove("open");
+            });
+          }
+        }
+
+        galleryToggleBtn.addEventListener("click", () =>
+          setGalleryPanelOpen(!galleryPanelOpen),
+        );
+
+        function refreshGalleryPanelHeight() {
+          if (galleryPanelOpen)
+            galleryCollapse.style.maxHeight =
+              galleryCollapse.scrollHeight + "px";
+        }
+
+        const IDEAL_W = 1270,
+          IDEAL_H = 760,
+          IDEAL_RATIO = IDEAL_W / IDEAL_H;
+        const galleryImages = []; // { id, file, url, width, height, sizeKB, status, note }
+        let galleryIdSeq = 0;
+
+        const dropZone = $("#drop-zone");
+        const galleryInput = $("#gallery-input");
+        const galleryGrid = $("#gallery-grid");
+        const gallerySummary = $("#gallery-summary");
+        const galleryCountBadge = $("#gallery-count-badge");
+
+        function openFileDialog() {
+          galleryInput.click();
+        }
+        dropZone.addEventListener("click", openFileDialog);
+        dropZone.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            openFileDialog();
+          }
+        });
+        ["dragenter", "dragover"].forEach((evt) =>
+          dropZone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            dropZone.classList.add("drag-over");
+          }),
+        );
+        ["dragleave", "drop"].forEach((evt) =>
+          dropZone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            dropZone.classList.remove("drag-over");
+          }),
+        );
+        dropZone.addEventListener("drop", (e) => {
+          if (e.dataTransfer?.files?.length)
+            handleGalleryFiles(e.dataTransfer.files);
+        });
+        galleryInput.addEventListener("change", (e) => {
+          if (e.target.files?.length) handleGalleryFiles(e.target.files);
+          galleryInput.value = "";
+        });
+
+        function evaluateGalleryImage(w, h) {
+          const ratio = w / h;
+          const ratioDiff = Math.abs(ratio - IDEAL_RATIO);
+          if (w < 640 || h < 380) {
+            return {
+              status: "fail",
+              note: `${w}×${h}px — too small, will look soft or blurry in the gallery.`,
+            };
+          }
+          if (ratioDiff > 0.18) {
+            return {
+              status: "fail",
+              note: `${w}×${h}px — aspect ratio (${ratio.toFixed(2)}:1) is far from 1.67:1, PH will crop it oddly.`,
+            };
+          }
+          if (w >= IDEAL_W && h >= IDEAL_H && ratioDiff < 0.04) {
+            return { status: "pass", note: `${w}×${h}px — matches the spec.` };
+          }
+          return {
+            status: "warn",
+            note: `${w}×${h}px — usable, but resize to exactly 1270×760 for the cleanest fit.`,
+          };
+        }
+
+        function handleGalleryFiles(fileList) {
+          const files = Array.from(fileList).filter((f) =>
+            f.type.startsWith("image/"),
+          );
+          if (galleryImages.length + files.length > 12) {
+            toast("That's a lot of images — showing the first ones only");
+          }
+          const room = Math.max(0, 12 - galleryImages.length);
+          files.slice(0, room).forEach((file) => {
+            const id = `gimg-${++galleryIdSeq}`;
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+              const evalResult = evaluateGalleryImage(
+                img.naturalWidth,
+                img.naturalHeight,
+              );
+              galleryImages.push({
+                id,
+                file,
+                url,
+                width: img.naturalWidth,
+                height: img.naturalHeight,
+                sizeKB: Math.round(file.size / 1024),
+                status: evalResult.status,
+                note: evalResult.note,
+              });
+              renderGallery();
+            };
+            img.onerror = () => {
+              galleryImages.push({
+                id,
+                file,
+                url,
+                width: 0,
+                height: 0,
+                sizeKB: Math.round(file.size / 1024),
+                status: "fail",
+                note: "Could not read this image file.",
+              });
+              renderGallery();
+            };
+            img.src = url;
+          });
+        }
+
+        function removeGalleryImage(id) {
+          const idx = galleryImages.findIndex((g) => g.id === id);
+          if (idx === -1) return;
+          URL.revokeObjectURL(galleryImages[idx].url);
+          galleryImages.splice(idx, 1);
+          renderGallery();
+        }
+
+        function galleryStatusColor(status) {
+          if (status === "pass") return cssVar("--green");
+          if (status === "warn") return cssVar("--amber");
+          return cssVar("--red");
+        }
+
+        function renderGallery() {
+          const n = galleryImages.length;
+          galleryCountBadge.textContent =
+            n > 0 ? `${n} image${n === 1 ? "" : "s"}` : "";
+
+          if (n === 0) {
+            gallerySummary.classList.add("hidden");
+            galleryGrid.innerHTML = "";
+            refreshGalleryPanelHeight();
+            return;
+          }
+
+          const passCount = galleryImages.filter(
+            (g) => g.status === "pass",
+          ).length;
+          const warnCount = galleryImages.filter(
+            (g) => g.status === "warn",
+          ).length;
+          const failCount = galleryImages.filter(
+            (g) => g.status === "fail",
+          ).length;
+
+          let countMsg, countColor;
+          if (n < 5) {
+            countMsg = `PH recommends 5–8 gallery images — you have ${n}. Add a few more.`;
+            countColor = cssVar("--amber");
+          } else if (n > 8) {
+            countMsg = `${n} images is more than PH's 5–8 guideline — trim it down to your strongest shots.`;
+            countColor = cssVar("--amber");
+          } else {
+            countMsg = `${n} images — right in PH's 5–8 sweet spot.`;
+            countColor = cssVar("--green");
+          }
+
+          gallerySummary.classList.remove("hidden");
+          gallerySummary.style.background = `color-mix(in srgb, ${countColor} 10%, transparent)`;
+          gallerySummary.style.border = `1px solid color-mix(in srgb, ${countColor} 35%, transparent)`;
+          gallerySummary.style.color = countColor;
+          gallerySummary.textContent = `${countMsg}  ·  ${passCount} spec-perfect, ${warnCount} usable, ${failCount} need resizing.`;
+
+          galleryGrid.innerHTML = galleryImages
+            .map((g) => {
+              const color = galleryStatusColor(g.status);
+              const glyph =
+                g.status === "pass" ? "✓"
+                : g.status === "warn" ? "!"
+                : "✕";
+              return `
+      <div class="gallery-card rounded-xl overflow-hidden relative">
+        <img src="${g.url}" alt="${escapeHtml(g.file.name)}" class="gallery-thumb w-full block" />
+        <button type="button" class="gallery-remove absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center text-xs focus-ring" data-remove="${g.id}" aria-label="Remove ${escapeHtml(g.file.name)}">✕</button>
+        <span class="absolute top-1.5 left-1.5 w-6 h-6 rounded-full flex items-center justify-center font-mono text-xs" style="background: color-mix(in srgb, ${color} 20%, rgba(11,17,32,0.6)); color: ${color}; border: 1px solid ${color}66">${glyph}</span>
+        <div class="p-2.5">
+          <p class="text-xs font-medium truncate" title="${escapeHtml(g.file.name)}">${escapeHtml(g.file.name)}</p>
+          <p class="text-xs mt-1 leading-snug" style="color: var(--mute)">${g.note}</p>
+        </div>
+      </div>`;
+            })
+            .join("");
+
+          refreshGalleryPanelHeight();
+        }
+
+        galleryGrid.addEventListener("click", (e) => {
+          const btn = e.target.closest("[data-remove]");
+          if (btn) removeGalleryImage(btn.dataset.remove);
+        });
+      })();
+    </script>
+  </body>
+</html>
 
