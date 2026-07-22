@@ -1,4 +1,4 @@
-![PREFLIGHT Score](https://img.shields.io/badge/PREFLIGHT-61%2F100-F5A623)
+![PREFLIGHT Score](https://img.shields.io/badge/PREFLIGHT-100%2F100-3ED88B)
 
 # PREFLIGHT
 
