@@ -1,3 +1,5 @@
+![PREFLIGHT Score](https://img.shields.io/badge/PREFLIGHT-61%2F100-F5A623)
+
 # PREFLIGHT
 
 **Cleared for launch, or not yet.**
